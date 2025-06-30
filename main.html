@@ -731,8 +731,8 @@
                             this.showProgress(progress);
                         }
                     } else {
-                        // Handle image template (existing code)
-                        templateImageBytes = await this.templateFile.arrayBuffer();
+                        // Handle image template
+                        const templateImageBytes = await this.templateFile.arrayBuffer();
                         let templateImage;
 
                         if (this.templateFile.type === 'image/png') {
@@ -759,7 +759,9 @@
                         }
                     }
 
-                    const pdfBytes = await pdfDoc.save();
+                    // Save the PDF with compression options
+                    const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
+
                     this.downloadPDF(pdfBytes);
 
                     this.showStatus(`Successfully generated ${totalPages} pages!`, 'success');
@@ -774,7 +776,6 @@
                 }
             }
  
-
             async addCodeToPage(page, settings, value) {
                 const codeValue = settings.prefix + value;
                 const pageSize = page.getSize();

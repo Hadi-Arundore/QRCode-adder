@@ -8,6 +8,7 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/browser-image-compression/dist/browser-image-compression.min.js"></script>
     <style>
         * {
             margin: 0;
@@ -760,7 +761,10 @@
                     }
 
                     // Save the PDF with compression options
-                    const pdfBytes = await pdfDoc.save({ useObjectStreams: true });
+                    const pdfBytes = await pdfDoc.save({
+                        useObjectStreams: true, // This can help reduce file size
+                        // Add any other compression options if available in the library
+                    });
 
                     this.downloadPDF(pdfBytes);
 
@@ -775,15 +779,33 @@
                     }, 2000);
                 }
             }
- 
+
+
+            async compressImage(dataURL) {
+                const imageCompression = window.imageCompression;
+                const options = {
+                    maxSizeMB: 0.1, // Maximum size in MB
+                    maxWidthOrHeight: 500, // Maximum width or height
+                    useWebWorker: true
+                };
+
+                const blob = await fetch(dataURL).then(res => res.blob());
+                const compressedFile = await imageCompression(blob, options);
+                return new Promise((resolve) => {
+                    const reader = new FileReader();
+                    reader.onload = (event) => resolve(event.target.result);
+                    reader.readAsDataURL(compressedFile);
+                });
+            }
+
             async addCodeToPage(page, settings, value) {
                 const codeValue = settings.prefix + value;
                 const pageSize = page.getSize();
-                
+
                 // Calculate position
                 const x = (settings.xPosition / 100) * pageSize.width;
                 const y = pageSize.height - (settings.yPosition / 100) * pageSize.height - settings.codeHeight;
-                
+
                 // Generate code
                 let codeDataURL;
                 if (settings.codeType === 'qr') {
@@ -791,20 +813,20 @@
                     const qr = qrcode(0, 'M');
                     qr.addData(codeValue);
                     qr.make();
-                    
+
                     // Create canvas and draw QR code
                     const canvas = document.createElement('canvas');
                     const ctx = canvas.getContext('2d');
                     const modules = qr.getModuleCount();
                     const cellSize = Math.floor(settings.codeWidth / modules);
-                    
+
                     canvas.width = cellSize * modules;
                     canvas.height = cellSize * modules;
-                    
+
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.fillStyle = '#000000';
-                    
+
                     for (let row = 0; row < modules; row++) {
                         for (let col = 0; col < modules; col++) {
                             if (qr.isDark(row, col)) {
@@ -812,7 +834,7 @@
                             }
                         }
                     }
-                    
+
                     codeDataURL = canvas.toDataURL();
                 } else {
                     const canvas = document.createElement('canvas');
@@ -824,11 +846,12 @@
                     });
                     codeDataURL = canvas.toDataURL();
                 }
-                
-                // Convert to bytes and embed
-                const codeImageBytes = this.dataURLToArrayBuffer(codeDataURL);
+
+                // Compress the image
+                const compressedDataURL = await this.compressImage(codeDataURL);
+                const codeImageBytes = this.dataURLToArrayBuffer(compressedDataURL);
                 const codeImage = await page.doc.embedPng(codeImageBytes);
-                
+
                 // Draw code
                 page.drawImage(codeImage, {
                     x: x,
@@ -836,7 +859,7 @@
                     width: settings.codeWidth,
                     height: settings.codeHeight
                 });
-                
+
                 // Draw value text if enabled
                 if (settings.showValue) {
                     page.drawText(codeValue, {
@@ -847,7 +870,7 @@
                     });
                 }
             }
-
+ 
             dataURLToArrayBuffer(dataURL) {
                 const base64 = dataURL.split(',')[1];
                 const binaryString = atob(base64);

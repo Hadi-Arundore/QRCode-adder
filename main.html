@@ -1,0 +1,873 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Template QR/Barcode Generator</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1200px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 20px;
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #2c3e50 0%, #34495e 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1rem;
+            opacity: 0.9;
+        }
+
+        .main-content {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 30px;
+            padding: 30px;
+        }
+
+        .control-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+        }
+
+        .preview-panel {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 25px;
+            border: 2px solid #e9ecef;
+            position: relative;
+        }
+
+        .section {
+            margin-bottom: 25px;
+        }
+
+        .section h3 {
+            color: #2c3e50;
+            margin-bottom: 15px;
+            font-size: 1.3rem;
+            padding-bottom: 8px;
+            border-bottom: 2px solid #3498db;
+        }
+
+        .form-group {
+            margin-bottom: 15px;
+        }
+
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: 600;
+            color: #555;
+        }
+
+        input, select, button {
+            width: 100%;
+            padding: 12px;
+            border: 2px solid #ddd;
+            border-radius: 8px;
+            font-size: 16px;
+            transition: all 0.3s ease;
+        }
+
+        input:focus, select:focus {
+            outline: none;
+            border-color: #3498db;
+            box-shadow: 0 0 0 3px rgba(52, 152, 219, 0.1);
+        }
+
+        button {
+            background: linear-gradient(135deg, #3498db, #2980b9);
+            color: white;
+            border: none;
+            cursor: pointer;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        button:hover {
+            background: linear-gradient(135deg, #2980b9, #21618c);
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+
+        button:disabled {
+            background: #bdc3c7;
+            cursor: not-allowed;
+            transform: none;
+            box-shadow: none;
+        }
+
+        .file-drop-zone {
+            border: 3px dashed #3498db;
+            border-radius: 15px;
+            padding: 40px 20px;
+            text-align: center;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.05), rgba(155, 89, 182, 0.05));
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .file-drop-zone:hover {
+            border-color: #2980b9;
+            background: linear-gradient(135deg, rgba(52, 152, 219, 0.1), rgba(155, 89, 182, 0.1));
+            transform: scale(1.02);
+        }
+
+        .file-drop-zone.dragover {
+            border-color: #27ae60;
+            background: linear-gradient(135deg, rgba(39, 174, 96, 0.1), rgba(46, 204, 113, 0.1));
+        }
+
+        .drop-text {
+            font-size: 1.2rem;
+            color: #7f8c8d;
+            margin-bottom: 10px;
+        }
+
+        .drop-subtext {
+            color: #95a5a6;
+            font-size: 0.9rem;
+        }
+
+        .preview-container {
+            position: relative;
+            background: white;
+            border: 2px solid #ddd;
+            border-radius: 10px;
+            min-height: 400px;
+            overflow: auto;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .template-preview {
+            max-width: 100%;
+            max-height: 100%;
+            border-radius: 5px;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+
+        .code-overlay {
+            position: absolute;
+            cursor: move;
+            border: 2px solid #e74c3c;
+            background: rgba(231, 76, 60, 0.1);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            border-radius: 5px;
+            padding: 5px;
+        }
+
+        .code-overlay img {
+            max-width: 100%;
+            max-height: 80%;
+        }
+
+        .code-overlay .value-text {
+            font-size: 12px;
+            font-weight: bold;
+            color: #2c3e50;
+            margin-top: 5px;
+        }
+
+        .row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 15px;
+        }
+
+        .checkbox-group {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .checkbox-group input[type="checkbox"] {
+            width: auto;
+        }
+
+        .progress-bar {
+            width: 100%;
+            height: 20px;
+            background: #ecf0f1;
+            border-radius: 10px;
+            overflow: hidden;
+            margin: 20px 0;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background: linear-gradient(90deg, #3498db, #2980b9);
+            width: 0%;
+            transition: width 0.3s ease;
+            border-radius: 10px;
+        }
+
+        .status-message {
+            text-align: center;
+            padding: 15px;
+            border-radius: 8px;
+            margin: 20px 0;
+            font-weight: 600;
+        }
+
+        .status-message.success {
+            background: #d4edda;
+            color: #155724;
+            border: 1px solid #c3e6cb;
+        }
+
+        .status-message.error {
+            background: #f8d7da;
+            color: #721c24;
+            border: 1px solid #f5c6cb;
+        }
+
+        .status-message.info {
+            background: #d1ecf1;
+            color: #0c5460;
+            border: 1px solid #bee5eb;
+        }
+
+        @media (max-width: 768px) {
+            .main-content {
+                grid-template-columns: 1fr;
+            }
+            
+            .header h1 {
+                font-size: 2rem;
+            }
+            
+            .row {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>Template QR/Barcode Generator</h1>
+            <p>Transform your templates into professional documents with custom codes</p>
+        </div>
+
+        <div class="main-content">
+            <div class="control-panel">
+                <div class="section">
+                    <h3>📄 Upload Template</h3>
+                    <div class="file-drop-zone" id="dropZone">
+                        <div class="drop-text">Drop your template here</div>
+                        <div class="drop-subtext">or click to browse (PDF or Image)</div>
+                        <input type="file" id="fileInput" accept=".pdf,.png,.jpg,.jpeg" style="display: none;">
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>⚙️ Code Settings</h3>
+                    <div class="form-group">
+                        <label>Code Type</label>
+                        <select id="codeType">
+                            <option value="qr">QR Code</option>
+                            <option value="barcode">Barcode</option>
+                        </select>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="form-group">
+                            <label>Start Value</label>
+                            <input type="number" id="startValue" value="1" min="0">
+                        </div>
+                        <div class="form-group">
+                            <label>End Value</label>
+                            <input type="number" id="endValue" value="10" min="1" max="500">
+                        </div>
+                    </div>
+
+                    <div class="form-group">
+                        <label>Prefix (optional)</label>
+                        <input type="text" id="prefix" placeholder="e.g., PT">
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showValue" checked>
+                        <label for="showValue">Show value below code</label>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <h3>📐 Position & Size</h3>
+                    <div class="row">
+                        <div class="form-group">
+                            <label>Width (px)</label>
+                            <input type="number" id="codeWidth" value="100" min="50" max="300">
+                        </div>
+                        <div class="form-group">
+                            <label>Height (px)</label>
+                            <input type="number" id="codeHeight" value="100" min="50" max="300">
+                        </div>
+                    </div>
+                    
+                    <div class="row">
+                        <div class="form-group">
+                            <label>X Position (%)</label>
+                            <input type="number" id="xPosition" value="85" min="0" max="95">
+                        </div>
+                        <div class="form-group">
+                            <label>Y Position (%)</label>
+                            <input type="number" id="yPosition" value="5" min="0" max="95">
+                        </div>
+                    </div>
+                </div>
+
+                <div class="section">
+                    <button id="generateBtn" disabled>Generate PDF</button>
+                </div>
+
+                <div class="progress-bar" id="progressBar" style="display: none;">
+                    <div class="progress-fill" id="progressFill"></div>
+                </div>
+
+                <div id="statusMessage"></div>
+            </div>
+
+            <div class="preview-panel">
+                <div class="section">
+                    <h3>👁️ Preview</h3>
+                    <div class="preview-container" id="previewContainer">
+                        <div style="text-align: center; color: #7f8c8d;">
+                            Upload a template to see preview
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        class TemplateCodeGenerator {
+            constructor() {
+                this.templateFile = null;
+                this.templateImage = null;
+                this.isDragging = false;
+                this.dragOffset = { x: 0, y: 0 };
+                
+                this.initializeEventListeners();
+                this.updatePreview();
+            }
+
+            initializeEventListeners() {
+                const dropZone = document.getElementById('dropZone');
+                const fileInput = document.getElementById('fileInput');
+                const generateBtn = document.getElementById('generateBtn');
+
+                // File upload
+                dropZone.addEventListener('click', () => fileInput.click());
+                dropZone.addEventListener('dragover', this.handleDragOver.bind(this));
+                dropZone.addEventListener('dragleave', this.handleDragLeave.bind(this));
+                dropZone.addEventListener('drop', this.handleDrop.bind(this));
+                fileInput.addEventListener('change', this.handleFileSelect.bind(this));
+
+                // Settings changes
+                ['codeType', 'startValue', 'endValue', 'prefix', 'showValue', 'codeWidth', 'codeHeight', 'xPosition', 'yPosition'].forEach(id => {
+                    document.getElementById(id).addEventListener('change', this.updatePreview.bind(this));
+                });
+
+                // Generate button
+                generateBtn.addEventListener('click', this.generatePDF.bind(this));
+            }
+
+            handleDragOver(e) {
+                e.preventDefault();
+                document.getElementById('dropZone').classList.add('dragover');
+            }
+
+            handleDragLeave(e) {
+                e.preventDefault();
+                document.getElementById('dropZone').classList.remove('dragover');
+            }
+
+            handleDrop(e) {
+                e.preventDefault();
+                document.getElementById('dropZone').classList.remove('dragover');
+                const files = e.dataTransfer.files;
+                if (files.length > 0) {
+                    this.processFile(files[0]);
+                }
+            }
+
+            handleFileSelect(e) {
+                if (e.target.files.length > 0) {
+                    this.processFile(e.target.files[0]);
+                }
+            }
+
+            async processFile(file) {
+                this.templateFile = file;
+                const fileType = file.type;
+
+                try {
+                    if (fileType === 'application/pdf') {
+                        await this.processPDF(file);
+                    } else if (fileType === 'image/png' || fileType === 'image/jpeg' || fileType === 'image/jpg') {
+                        await this.processImage(file);
+                    } else {
+                        this.showStatus('Please upload a PDF, PNG, or JPG file', 'error');
+                        return;
+                    }
+
+                    document.getElementById('generateBtn').disabled = false;
+                    this.updatePreview();
+                    this.showStatus('Template loaded successfully!', 'success');
+                } catch (error) {
+                    console.error('Error processing file:', error);
+                    this.showStatus('Error processing file: ' + error.message, 'error');
+                }
+            }
+
+            async processPDF(file) {
+                const arrayBuffer = await file.arrayBuffer();
+                const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
+                const pages = pdfDoc.getPages();
+                
+                if (pages.length === 0) {
+                    throw new Error('PDF has no pages');
+                }
+
+                // Convert first page to image
+                const page = pages[0];
+                const { width, height } = page.getSize();
+                
+                // Create canvas to render PDF page
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                canvas.width = width;
+                canvas.height = height;
+                
+                // For simplicity, we'll store the PDF and use it directly
+                this.templateImage = await this.pdfPageToImage(arrayBuffer);
+            }
+
+            async pdfPageToImage(pdfArrayBuffer) {
+                // Create a simple image representation
+                // In a real implementation, you'd use PDF-to-canvas libraries
+                const blob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                
+                // For demo purposes, create a placeholder image
+                const canvas = document.createElement('canvas');
+                canvas.width = 595; // A4 width in points
+                canvas.height = 842; // A4 height in points
+                const ctx = canvas.getContext('2d');
+                
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#f0f0f0';
+                ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
+                ctx.fillStyle = '#333';
+                ctx.font = '24px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('PDF Template Preview', canvas.width / 2, canvas.height / 2);
+                
+                return canvas.toDataURL();
+            }
+
+            async processImage(file) {
+                return new Promise((resolve, reject) => {
+                    const reader = new FileReader();
+                    reader.onload = (e) => {
+                        this.templateImage = e.target.result;
+                        resolve();
+                    };
+                    reader.onerror = reject;
+                    reader.readAsDataURL(file);
+                });
+            }
+
+            async updatePreview() {
+                const previewContainer = document.getElementById('previewContainer');
+                
+                if (!this.templateImage) {
+                    previewContainer.innerHTML = '<div style="text-align: center; color: #7f8c8d;">Upload a template to see preview</div>';
+                    return;
+                }
+
+                const settings = this.getSettings();
+                
+                // Create preview
+                previewContainer.innerHTML = `
+                    <div style="position: relative; display: inline-block;">
+                        <img src="${this.templateImage}" class="template-preview" id="templateImg">
+                        <div class="code-overlay" id="codeOverlay" style="
+                            left: ${settings.xPosition}%; 
+                            top: ${settings.yPosition}%; 
+                            width: ${settings.codeWidth}px; 
+                            height: ${settings.codeHeight + (settings.showValue ? 20 : 0)}px;
+                        ">
+                            <img id="previewCode" style="width: ${settings.codeWidth}px; height: ${settings.codeHeight}px;">
+                            ${settings.showValue ? `<div class="value-text">${settings.prefix}${settings.startValue}</div>` : ''}
+                        </div>
+                    </div>
+                `;
+
+                // Generate preview code
+                await this.generatePreviewCode();
+                
+                // Make code overlay draggable
+                this.makeDraggable();
+            }
+
+            async generatePreviewCode() {
+                const settings = this.getSettings();
+                const value = settings.prefix + settings.startValue;
+                const previewCodeImg = document.getElementById('previewCode');
+                
+                try {
+                    if (settings.codeType === 'qr') {
+                        // Use the qrcode-generator library
+                        const qr = qrcode(0, 'M');
+                        qr.addData(value);
+                        qr.make();
+                        
+                        // Create canvas and draw QR code
+                        const canvas = document.createElement('canvas');
+                        const ctx = canvas.getContext('2d');
+                        const modules = qr.getModuleCount();
+                        const cellSize = Math.floor(settings.codeWidth / modules);
+                        
+                        canvas.width = cellSize * modules;
+                        canvas.height = cellSize * modules;
+                        
+                        ctx.fillStyle = '#ffffff';
+                        ctx.fillRect(0, 0, canvas.width, canvas.height);
+                        ctx.fillStyle = '#000000';
+                        
+                        for (let row = 0; row < modules; row++) {
+                            for (let col = 0; col < modules; col++) {
+                                if (qr.isDark(row, col)) {
+                                    ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+                                }
+                            }
+                        }
+                        
+                        previewCodeImg.src = canvas.toDataURL();
+                    } else {
+                        const canvas = document.createElement('canvas');
+                        JsBarcode(canvas, value, {
+                            format: "CODE128",
+                            width: 2,
+                            height: settings.codeHeight - 20,
+                            displayValue: false
+                        });
+                        previewCodeImg.src = canvas.toDataURL();
+                    }
+                } catch (error) {
+                    console.error('Error generating preview code:', error);
+                    // Show error in preview
+                    const canvas = document.createElement('canvas');
+                    canvas.width = settings.codeWidth;
+                    canvas.height = settings.codeHeight;
+                    const ctx = canvas.getContext('2d');
+                    ctx.fillStyle = '#f8f9fa';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#dc3545';
+                    ctx.font = '12px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('Error', canvas.width/2, canvas.height/2);
+                    previewCodeImg.src = canvas.toDataURL();
+                }
+            }
+
+            makeDraggable() {
+                const overlay = document.getElementById('codeOverlay');
+                const container = document.getElementById('previewContainer');
+                
+                overlay.addEventListener('mousedown', (e) => {
+                    this.isDragging = true;
+                    const rect = overlay.getBoundingClientRect();
+                    const containerRect = container.getBoundingClientRect();
+                    this.dragOffset.x = e.clientX - rect.left;
+                    this.dragOffset.y = e.clientY - rect.top;
+                    
+                    const mouseMoveHandler = (e) => {
+                        if (!this.isDragging) return;
+                        
+                        const containerRect = container.getBoundingClientRect();
+                        const templateImg = document.getElementById('templateImg');
+                        const templateRect = templateImg.getBoundingClientRect();
+                        
+                        let newX = e.clientX - templateRect.left - this.dragOffset.x;
+                        let newY = e.clientY - templateRect.top - this.dragOffset.y;
+                        
+                        // Convert to percentage
+                        const xPercent = Math.max(0, Math.min(95, (newX / templateImg.offsetWidth) * 100));
+                        const yPercent = Math.max(0, Math.min(95, (newY / templateImg.offsetHeight) * 100));
+                        
+                        document.getElementById('xPosition').value = Math.round(xPercent);
+                        document.getElementById('yPosition').value = Math.round(yPercent);
+                        
+                        overlay.style.left = xPercent + '%';
+                        overlay.style.top = yPercent + '%';
+                    };
+                    
+                    const mouseUpHandler = () => {
+                        this.isDragging = false;
+                        document.removeEventListener('mousemove', mouseMoveHandler);
+                        document.removeEventListener('mouseup', mouseUpHandler);
+                    };
+                    
+                    document.addEventListener('mousemove', mouseMoveHandler);
+                    document.addEventListener('mouseup', mouseUpHandler);
+                });
+            }
+
+            getSettings() {
+                return {
+                    codeType: document.getElementById('codeType').value,
+                    startValue: parseInt(document.getElementById('startValue').value),
+                    endValue: parseInt(document.getElementById('endValue').value),
+                    prefix: document.getElementById('prefix').value,
+                    showValue: document.getElementById('showValue').checked,
+                    codeWidth: parseInt(document.getElementById('codeWidth').value),
+                    codeHeight: parseInt(document.getElementById('codeHeight').value),
+                    xPosition: parseInt(document.getElementById('xPosition').value),
+                    yPosition: parseInt(document.getElementById('yPosition').value)
+                };
+            }
+
+            async generatePDF() {
+                const settings = this.getSettings();
+                const totalPages = settings.endValue - settings.startValue + 1;
+                
+                if (totalPages > 500) {
+                    this.showStatus('Maximum 500 pages allowed', 'error');
+                    return;
+                }
+
+                this.showStatus('Generating PDF...', 'info');
+                this.showProgress(0);
+
+                try {
+                    const pdfDoc = await PDFLib.PDFDocument.create();
+                    
+                    // Get template image
+                    let templateImageBytes;
+                    if (this.templateFile.type === 'application/pdf') {
+                        // Handle PDF template
+                        const originalPdf = await PDFLib.PDFDocument.load(await this.templateFile.arrayBuffer());
+                        const [templatePage] = await pdfDoc.copyPages(originalPdf, [0]);
+                        
+                        for (let i = settings.startValue; i <= settings.endValue; i++) {
+                            const page = pdfDoc.addPage([templatePage.getWidth(), templatePage.getHeight()]);
+                            page.drawPage(templatePage);
+                            
+                            await this.addCodeToPage(page, settings, i);
+                            
+                            const progress = ((i - settings.startValue + 1) / totalPages) * 100;
+                            this.showProgress(progress);
+                        }
+                    } else {
+                        // Handle image template
+                        templateImageBytes = await this.templateFile.arrayBuffer();
+                        let templateImage;
+                        
+                        // Check file type and use appropriate embed method
+                        if (this.templateFile.type === 'image/png') {
+                            templateImage = await pdfDoc.embedPng(templateImageBytes);
+                        } else if (this.templateFile.type === 'image/jpeg' || this.templateFile.type === 'image/jpg') {
+                            templateImage = await pdfDoc.embedJpg(templateImageBytes);
+                        } else {
+                            throw new Error('Unsupported image format. Please use PNG or JPG.');
+                        }
+                        
+                        for (let i = settings.startValue; i <= settings.endValue; i++) {
+                            const page = pdfDoc.addPage([templateImage.width, templateImage.height]);
+                            page.drawImage(templateImage, {
+                                x: 0,
+                                y: 0,
+                                width: templateImage.width,
+                                height: templateImage.height
+                            });
+                            
+                            await this.addCodeToPage(page, settings, i);
+                            
+                            const progress = ((i - settings.startValue + 1) / totalPages) * 100;
+                            this.showProgress(progress);
+                        }
+                    }
+
+                    const pdfBytes = await pdfDoc.save();
+                    this.downloadPDF(pdfBytes);
+                    
+                    this.showStatus(`Successfully generated ${totalPages} pages!`, 'success');
+                    this.showProgress(100);
+                } catch (error) {
+                    console.error('Error generating PDF:', error);
+                    this.showStatus('Error generating PDF: ' + error.message, 'error');
+                } finally {
+                    setTimeout(() => {
+                        document.getElementById('progressBar').style.display = 'none';
+                    }, 2000);
+                }
+            }
+
+            async addCodeToPage(page, settings, value) {
+                const codeValue = settings.prefix + value;
+                const pageSize = page.getSize();
+                
+                // Calculate position
+                const x = (settings.xPosition / 100) * pageSize.width;
+                const y = pageSize.height - (settings.yPosition / 100) * pageSize.height - settings.codeHeight;
+                
+                // Generate code
+                let codeDataURL;
+                if (settings.codeType === 'qr') {
+                    // Use the qrcode-generator library
+                    const qr = qrcode(0, 'M');
+                    qr.addData(codeValue);
+                    qr.make();
+                    
+                    // Create canvas and draw QR code
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const modules = qr.getModuleCount();
+                    const cellSize = Math.floor(settings.codeWidth / modules);
+                    
+                    canvas.width = cellSize * modules;
+                    canvas.height = cellSize * modules;
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#000000';
+                    
+                    for (let row = 0; row < modules; row++) {
+                        for (let col = 0; col < modules; col++) {
+                            if (qr.isDark(row, col)) {
+                                ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+                            }
+                        }
+                    }
+                    
+                    codeDataURL = canvas.toDataURL();
+                } else {
+                    const canvas = document.createElement('canvas');
+                    JsBarcode(canvas, codeValue, {
+                        format: "CODE128",
+                        width: 2,
+                        height: settings.codeHeight - 20,
+                        displayValue: false
+                    });
+                    codeDataURL = canvas.toDataURL();
+                }
+                
+                // Convert to bytes and embed
+                const codeImageBytes = this.dataURLToArrayBuffer(codeDataURL);
+                const codeImage = await page.doc.embedPng(codeImageBytes);
+                
+                // Draw code
+                page.drawImage(codeImage, {
+                    x: x,
+                    y: y,
+                    width: settings.codeWidth,
+                    height: settings.codeHeight
+                });
+                
+                // Draw value text if enabled
+                if (settings.showValue) {
+                    page.drawText(codeValue, {
+                        x: x,
+                        y: y - 15,
+                        size: 10,
+                        color: PDFLib.rgb(0, 0, 0)
+                    });
+                }
+            }
+
+            dataURLToArrayBuffer(dataURL) {
+                const base64 = dataURL.split(',')[1];
+                const binaryString = atob(base64);
+                const bytes = new Uint8Array(binaryString.length);
+                for (let i = 0; i < binaryString.length; i++) {
+                    bytes[i] = binaryString.charCodeAt(i);
+                }
+                return bytes;
+            }
+
+            downloadPDF(pdfBytes) {
+                const blob = new Blob([pdfBytes], { type: 'application/pdf' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `template_with_codes_${Date.now()}.pdf`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                URL.revokeObjectURL(url);
+            }
+
+            showProgress(percent) {
+                const progressBar = document.getElementById('progressBar');
+                const progressFill = document.getElementById('progressFill');
+                
+                progressBar.style.display = 'block';
+                progressFill.style.width = percent + '%';
+            }
+
+            showStatus(message, type) {
+                const statusDiv = document.getElementById('statusMessage');
+                statusDiv.textContent = message;
+                statusDiv.className = `status-message ${type}`;
+                statusDiv.style.display = 'block';
+                
+                if (type === 'success') {
+                    setTimeout(() => {
+                        statusDiv.style.display = 'none';
+                    }, 5000);
+                }
+            }
+        }
+
+        // Initialize the application
+        document.addEventListener('DOMContentLoaded', () => {
+            new TemplateCodeGenerator();
+        });
+    </script>
+</body>
+</html>

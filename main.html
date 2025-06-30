@@ -693,7 +693,7 @@
             async generatePDF() {
                 const settings = this.getSettings();
                 const totalPages = settings.endValue - settings.startValue + 1;
-                
+
                 if (totalPages > 500) {
                     this.showStatus('Maximum 500 pages allowed', 'error');
                     return;
@@ -704,29 +704,37 @@
 
                 try {
                     const pdfDoc = await PDFLib.PDFDocument.create();
-                    
-                    // Get template image
-                    let templateImageBytes;
+
                     if (this.templateFile.type === 'application/pdf') {
                         // Handle PDF template
-                        const originalPdf = await PDFLib.PDFDocument.load(await this.templateFile.arrayBuffer());
-                        const [templatePage] = await pdfDoc.copyPages(originalPdf, [0]);
-                        
+                        const originalPdfBytes = await this.templateFile.arrayBuffer();
+                        const originalPdf = await PDFLib.PDFDocument.load(originalPdfBytes);
+
                         for (let i = settings.startValue; i <= settings.endValue; i++) {
-                            const page = pdfDoc.addPage([templatePage.getWidth(), templatePage.getHeight()]);
-                            page.drawPage(templatePage);
-                            
+                            // Create a new page in the new PDF with the same dimensions as the original
+                            const [originalPage] = originalPdf.getPages();
+                            const { width, height } = originalPage.getSize();
+                            const page = pdfDoc.addPage([width, height]);
+
+                            // Draw the original page content
+                            const embeddedPage = await pdfDoc.embedPage(originalPage);
+                            page.drawPage(embeddedPage, {
+                                x: 0,
+                                y: 0,
+                                width: width,
+                                height: height
+                            });
+
                             await this.addCodeToPage(page, settings, i);
-                            
+
                             const progress = ((i - settings.startValue + 1) / totalPages) * 100;
                             this.showProgress(progress);
                         }
                     } else {
-                        // Handle image template
+                        // Handle image template (existing code)
                         templateImageBytes = await this.templateFile.arrayBuffer();
                         let templateImage;
-                        
-                        // Check file type and use appropriate embed method
+
                         if (this.templateFile.type === 'image/png') {
                             templateImage = await pdfDoc.embedPng(templateImageBytes);
                         } else if (this.templateFile.type === 'image/jpeg' || this.templateFile.type === 'image/jpg') {
@@ -734,7 +742,7 @@
                         } else {
                             throw new Error('Unsupported image format. Please use PNG or JPG.');
                         }
-                        
+
                         for (let i = settings.startValue; i <= settings.endValue; i++) {
                             const page = pdfDoc.addPage([templateImage.width, templateImage.height]);
                             page.drawImage(templateImage, {
@@ -743,9 +751,9 @@
                                 width: templateImage.width,
                                 height: templateImage.height
                             });
-                            
+
                             await this.addCodeToPage(page, settings, i);
-                            
+
                             const progress = ((i - settings.startValue + 1) / totalPages) * 100;
                             this.showProgress(progress);
                         }
@@ -753,7 +761,7 @@
 
                     const pdfBytes = await pdfDoc.save();
                     this.downloadPDF(pdfBytes);
-                    
+
                     this.showStatus(`Successfully generated ${totalPages} pages!`, 'success');
                     this.showProgress(100);
                 } catch (error) {
@@ -765,6 +773,7 @@
                     }, 2000);
                 }
             }
+ 
 
             async addCodeToPage(page, settings, value) {
                 const codeValue = settings.prefix + value;

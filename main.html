@@ -800,7 +800,6 @@
                     reader.readAsDataURL(compressedFile);
                 });
             }
-
             async addCodeToPage(page, settings, value) {
                 const codeValue = settings.prefix + value;
                 const pageSize = page.getSize();
@@ -865,15 +864,19 @@
 
                 // Draw value text if enabled
                 if (settings.showValue) {
+                    // Calculate text width to center it
+                    const textWidth = codeValue.length * 5; // Approximate width calculation
+                    const textX = x + (settings.codeWidth / 2) - (textWidth / 2);
+
                     page.drawText(codeValue, {
-                        x: x,
+                        x: textX,
                         y: y - 15,
                         size: 10,
                         color: PDFLib.rgb(0, 0, 0)
                     });
                 }
             }
- 
+
             dataURLToArrayBuffer(dataURL) {
                 const base64 = dataURL.split(',')[1];
                 const binaryString = atob(base64);

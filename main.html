@@ -5,6 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Template QR/Barcode Generator</title>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf-lib/1.17.1/pdf-lib.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcode-generator/1.4.4/qrcode.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jsbarcode/3.11.5/JsBarcode.all.min.js"></script>
     <style>
@@ -471,42 +472,59 @@
                     throw new Error('PDF has no pages');
                 }
 
-                // Convert first page to image
-                const page = pages[0];
-                const { width, height } = page.getSize();
-                
-                // Create canvas to render PDF page
-                const canvas = document.createElement('canvas');
-                const ctx = canvas.getContext('2d');
-                canvas.width = width;
-                canvas.height = height;
-                
-                // For simplicity, we'll store the PDF and use it directly
+                // Convert first page to image for preview
                 this.templateImage = await this.pdfPageToImage(arrayBuffer);
             }
 
             async pdfPageToImage(pdfArrayBuffer) {
-                // Create a simple image representation
-                // In a real implementation, you'd use PDF-to-canvas libraries
-                const blob = new Blob([pdfArrayBuffer], { type: 'application/pdf' });
-                const url = URL.createObjectURL(blob);
-                
-                // For demo purposes, create a placeholder image
-                const canvas = document.createElement('canvas');
-                canvas.width = 595; // A4 width in points
-                canvas.height = 842; // A4 height in points
-                const ctx = canvas.getContext('2d');
-                
-                ctx.fillStyle = '#ffffff';
-                ctx.fillRect(0, 0, canvas.width, canvas.height);
-                ctx.fillStyle = '#f0f0f0';
-                ctx.fillRect(20, 20, canvas.width - 40, canvas.height - 40);
-                ctx.fillStyle = '#333';
-                ctx.font = '24px Arial';
-                ctx.textAlign = 'center';
-                ctx.fillText('PDF Template Preview', canvas.width / 2, canvas.height / 2);
-                
-                return canvas.toDataURL();
+                try {
+                    // Set up PDF.js worker
+                    pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
+                    
+                    // Load PDF
+                    const pdf = await pdfjsLib.getDocument({ data: pdfArrayBuffer }).promise;
+                    const page = await pdf.getPage(1);
+                    
+                    // Set up canvas
+                    const scale = 1.5;
+                    const viewport = page.getViewport({ scale });
+                    const canvas = document.createElement('canvas');
+                    const context = canvas.getContext('2d');
+                    canvas.height = viewport.height;
+                    canvas.width = viewport.width;
+                    
+                    // Render page
+                    const renderContext = {
+                        canvasContext: context,
+                        viewport: viewport
+                    };
+                    
+                    await page.render(renderContext).promise;
+                    return canvas.toDataURL();
+                    
+                } catch (error) {
+                    console.error('Error converting PDF to image:', error);
+                    // Fallback to placeholder
+                    const canvas = document.createElement('canvas');
+                    canvas.width = 595;
+                    canvas.height = 842;
+                    const ctx = canvas.getContext('2d');
+                    
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.strokeStyle = '#ddd';
+                    ctx.lineWidth = 2;
+                    ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+                    
+                    ctx.fillStyle = '#666';
+                    ctx.font = 'bold 24px Arial';
+                    ctx.textAlign = 'center';
+                    ctx.fillText('PDF Template', canvas.width / 2, canvas.height / 2 - 20);
+                    ctx.font = '16px Arial';
+                    ctx.fillText('(Preview loading failed)', canvas.width / 2, canvas.height / 2 + 10);
+                    
+                    return canvas.toDataURL();
+                }
             }
 
             async processImage(file) {

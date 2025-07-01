@@ -272,15 +272,30 @@
             border: 1px solid #bee5eb;
         }
 
+        .code-settings {
+            margin-bottom: 20px;
+            padding: 15px;
+            border: 1px solid #ddd;
+            border-radius: 8px;
+            background-color: #f8f9fa;
+        }
+
+        .code-settings h4 {
+            margin-top: 0;
+            color: #2c3e50;
+            border-bottom: 1px solid #eee;
+            padding-bottom: 8px;
+        }
+
         @media (max-width: 768px) {
             .main-content {
                 grid-template-columns: 1fr;
             }
-            
+
             .header h1 {
                 font-size: 2rem;
             }
-            
+
             .row {
                 grid-template-columns: 1fr;
             }
@@ -307,14 +322,7 @@
 
                 <div class="section">
                     <h3>⚙️ Code Settings</h3>
-                    <div class="form-group">
-                        <label>Code Type</label>
-                        <select id="codeType">
-                            <option value="qr">QR Code</option>
-                            <option value="barcode">Barcode</option>
-                        </select>
-                    </div>
-                    
+
                     <div class="row">
                         <div class="form-group">
                             <label>Start Value</label>
@@ -337,27 +345,54 @@
                     </div>
                 </div>
 
-                <div class="section">
-                    <h3>📐 Position & Size</h3>
+                <!-- QR Code Settings -->
+                <div class="section code-settings">
+                    <h4>QR Code Settings</h4>
                     <div class="row">
                         <div class="form-group">
                             <label>Width (px)</label>
-                            <input type="number" id="codeWidth" value="100" min="50" max="300">
+                            <input type="number" id="qrWidth" value="100" min="50" max="300">
                         </div>
                         <div class="form-group">
                             <label>Height (px)</label>
-                            <input type="number" id="codeHeight" value="100" min="50" max="300">
+                            <input type="number" id="qrHeight" value="100" min="50" max="300">
                         </div>
                     </div>
-                    
+
                     <div class="row">
                         <div class="form-group">
                             <label>X Position (%)</label>
-                            <input type="number" id="xPosition" value="85" min="0" max="95">
+                            <input type="number" id="qrXPosition" value="85" min="0" max="95">
                         </div>
                         <div class="form-group">
                             <label>Y Position (%)</label>
-                            <input type="number" id="yPosition" value="5" min="0" max="95">
+                            <input type="number" id="qrYPosition" value="5" min="0" max="95">
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Barcode Settings -->
+                <div class="section code-settings">
+                    <h4>Barcode Settings</h4>
+                    <div class="row">
+                        <div class="form-group">
+                            <label>Width (px)</label>
+                            <input type="number" id="barcodeWidth" value="200" min="50" max="500">
+                        </div>
+                        <div class="form-group">
+                            <label>Height (px)</label>
+                            <input type="number" id="barcodeHeight" value="80" min="50" max="200">
+                        </div>
+                    </div>
+
+                    <div class="row">
+                        <div class="form-group">
+                            <label>X Position (%)</label>
+                            <input type="number" id="barcodeXPosition" value="5" min="0" max="95">
+                        </div>
+                        <div class="form-group">
+                            <label>Y Position (%)</label>
+                            <input type="number" id="barcodeYPosition" value="85" min="0" max="95">
                         </div>
                     </div>
                 </div>
@@ -393,7 +428,8 @@
                 this.templateImage = null;
                 this.isDragging = false;
                 this.dragOffset = { x: 0, y: 0 };
-                
+                this.draggedElement = null;
+
                 this.initializeEventListeners();
                 this.updatePreview();
             }
@@ -411,7 +447,13 @@
                 fileInput.addEventListener('change', this.handleFileSelect.bind(this));
 
                 // Settings changes
-                ['codeType', 'startValue', 'endValue', 'prefix', 'showValue', 'codeWidth', 'codeHeight', 'xPosition', 'yPosition'].forEach(id => {
+                const settingsIds = [
+                    'startValue', 'endValue', 'prefix', 'showValue',
+                    'qrWidth', 'qrHeight', 'qrXPosition', 'qrYPosition',
+                    'barcodeWidth', 'barcodeHeight', 'barcodeXPosition', 'barcodeYPosition'
+                ];
+
+                settingsIds.forEach(id => {
                     document.getElementById(id).addEventListener('change', this.updatePreview.bind(this));
                 });
 
@@ -471,7 +513,7 @@
                 const arrayBuffer = await file.arrayBuffer();
                 const pdfDoc = await PDFLib.PDFDocument.load(arrayBuffer);
                 const pages = pdfDoc.getPages();
-                
+
                 if (pages.length === 0) {
                     throw new Error('PDF has no pages');
                 }
@@ -484,11 +526,11 @@
                 try {
                     // Set up PDF.js worker
                     pdfjsLib.GlobalWorkerOptions.workerSrc = 'https://cdnjs.cloudflare.com/ajax/libs/pdf.js/3.11.174/pdf.worker.min.js';
-                    
+
                     // Load PDF
                     const pdf = await pdfjsLib.getDocument({ data: pdfArrayBuffer }).promise;
                     const page = await pdf.getPage(1);
-                    
+
                     // Set up canvas
                     const scale = 1.5;
                     const viewport = page.getViewport({ scale });
@@ -496,16 +538,16 @@
                     const context = canvas.getContext('2d');
                     canvas.height = viewport.height;
                     canvas.width = viewport.width;
-                    
+
                     // Render page
                     const renderContext = {
                         canvasContext: context,
                         viewport: viewport
                     };
-                    
+
                     await page.render(renderContext).promise;
                     return canvas.toDataURL();
-                    
+
                 } catch (error) {
                     console.error('Error converting PDF to image:', error);
                     // Fallback to placeholder
@@ -513,20 +555,20 @@
                     canvas.width = 595;
                     canvas.height = 842;
                     const ctx = canvas.getContext('2d');
-                    
+
                     ctx.fillStyle = '#ffffff';
                     ctx.fillRect(0, 0, canvas.width, canvas.height);
                     ctx.strokeStyle = '#ddd';
                     ctx.lineWidth = 2;
                     ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
-                    
+
                     ctx.fillStyle = '#666';
                     ctx.font = 'bold 24px Arial';
                     ctx.textAlign = 'center';
                     ctx.fillText('PDF Template', canvas.width / 2, canvas.height / 2 - 20);
                     ctx.font = '16px Arial';
                     ctx.fillText('(Preview loading failed)', canvas.width / 2, canvas.height / 2 + 10);
-                    
+
                     return canvas.toDataURL();
                 }
             }
@@ -545,136 +587,158 @@
 
             async updatePreview() {
                 const previewContainer = document.getElementById('previewContainer');
-                
+
                 if (!this.templateImage) {
                     previewContainer.innerHTML = '<div style="text-align: center; color: #7f8c8d;">Upload a template to see preview</div>';
                     return;
                 }
 
                 const settings = this.getSettings();
-                
+
                 // Create preview
                 previewContainer.innerHTML = `
                     <div style="position: relative; display: inline-block;">
                         <img src="${this.templateImage}" class="template-preview" id="templateImg">
-                        <div class="code-overlay" id="codeOverlay" style="
-                            left: ${settings.xPosition}%; 
-                            top: ${settings.yPosition}%; 
-                            width: ${settings.codeWidth}px; 
-                            height: ${settings.codeHeight + (settings.showValue ? 20 : 0)}px;
+                        <div class="code-overlay" id="qrCodeOverlay" style="
+                            left: ${settings.qrXPosition}%;
+                            top: ${settings.qrYPosition}%;
+                            width: ${settings.qrWidth}px;
+                            height: ${settings.qrHeight + (settings.showValue ? 20 : 0)}px;
                         ">
-                            <img id="previewCode" style="width: ${settings.codeWidth}px; height: ${settings.codeHeight}px;">
+                            <img id="previewQRCode" style="width: ${settings.qrWidth}px; height: ${settings.qrHeight}px;">
+                            ${settings.showValue ? `<div class="value-text">${settings.prefix}${settings.startValue}</div>` : ''}
+                        </div>
+                        <div class="code-overlay" id="barcodeOverlay" style="
+                            left: ${settings.barcodeXPosition}%;
+                            top: ${settings.barcodeYPosition}%;
+                            width: ${settings.barcodeWidth}px;
+                            height: ${settings.barcodeHeight + (settings.showValue ? 20 : 0)}px;
+                        ">
+                            <img id="previewBarcode" style="width: ${settings.barcodeWidth}px; height: ${settings.barcodeHeight}px;">
                             ${settings.showValue ? `<div class="value-text">${settings.prefix}${settings.startValue}</div>` : ''}
                         </div>
                     </div>
                 `;
 
-                // Generate preview code
-                await this.generatePreviewCode();
-                
-                // Make code overlay draggable
-                this.makeDraggable();
+                // Generate preview codes
+                await this.generatePreviewQRCode();
+                await this.generatePreviewBarcode();
+
+                // Make code overlays draggable
+                this.makeDraggable('qrCodeOverlay', 'qrXPosition', 'qrYPosition');
+                this.makeDraggable('barcodeOverlay', 'barcodeXPosition', 'barcodeYPosition');
             }
 
-            async generatePreviewCode() {
+            async generatePreviewQRCode() {
                 const settings = this.getSettings();
                 const value = settings.prefix + settings.startValue;
-                const previewCodeImg = document.getElementById('previewCode');
-                
+                const previewCodeImg = document.getElementById('previewQRCode');
+
                 try {
-                    if (settings.codeType === 'qr') {
-                        // Use the qrcode-generator library
-                        const qr = qrcode(0, 'M');
-                        qr.addData(value);
-                        qr.make();
-                        
-                        // Create canvas and draw QR code
-                        const canvas = document.createElement('canvas');
-                        const ctx = canvas.getContext('2d');
-                        const modules = qr.getModuleCount();
-                        const cellSize = Math.floor(settings.codeWidth / modules);
-                        
-                        canvas.width = cellSize * modules;
-                        canvas.height = cellSize * modules;
-                        
-                        ctx.fillStyle = '#ffffff';
-                        ctx.fillRect(0, 0, canvas.width, canvas.height);
-                        ctx.fillStyle = '#000000';
-                        
-                        for (let row = 0; row < modules; row++) {
-                            for (let col = 0; col < modules; col++) {
-                                if (qr.isDark(row, col)) {
-                                    ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-                                }
+                    // Use the qrcode-generator library
+                    const qr = qrcode(0, 'M');
+                    qr.addData(value);
+                    qr.make();
+
+                    // Create canvas and draw QR code
+                    const canvas = document.createElement('canvas');
+                    const ctx = canvas.getContext('2d');
+                    const modules = qr.getModuleCount();
+                    const cellSize = Math.floor(settings.qrWidth / modules);
+
+                    canvas.width = cellSize * modules;
+                    canvas.height = cellSize * modules;
+
+                    ctx.fillStyle = '#ffffff';
+                    ctx.fillRect(0, 0, canvas.width, canvas.height);
+                    ctx.fillStyle = '#000000';
+
+                    for (let row = 0; row < modules; row++) {
+                        for (let col = 0; col < modules; col++) {
+                            if (qr.isDark(row, col)) {
+                                ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
                             }
                         }
-                        
-                        previewCodeImg.src = canvas.toDataURL();
-                    } else {
-                        const canvas = document.createElement('canvas');
-                        JsBarcode(canvas, value, {
-                            format: "CODE128",
-                            width: 2,
-                            height: settings.codeHeight - 20,
-                            displayValue: false
-                        });
-                        previewCodeImg.src = canvas.toDataURL();
                     }
-                } catch (error) {
-                    console.error('Error generating preview code:', error);
-                    // Show error in preview
-                    const canvas = document.createElement('canvas');
-                    canvas.width = settings.codeWidth;
-                    canvas.height = settings.codeHeight;
-                    const ctx = canvas.getContext('2d');
-                    ctx.fillStyle = '#f8f9fa';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#dc3545';
-                    ctx.font = '12px Arial';
-                    ctx.textAlign = 'center';
-                    ctx.fillText('Error', canvas.width/2, canvas.height/2);
+
                     previewCodeImg.src = canvas.toDataURL();
+                } catch (error) {
+                    console.error('Error generating preview QR code:', error);
+                    this.showErrorInPreview('previewQRCode', settings.qrWidth, settings.qrHeight);
                 }
             }
 
-            makeDraggable() {
-                const overlay = document.getElementById('codeOverlay');
+            async generatePreviewBarcode() {
+                const settings = this.getSettings();
+                const value = settings.prefix + settings.startValue;
+                const previewCodeImg = document.getElementById('previewBarcode');
+
+                try {
+                    const canvas = document.createElement('canvas');
+                    JsBarcode(canvas, value, {
+                        format: "CODE128",
+                        width: 2,
+                        height: settings.barcodeHeight - 20,
+                        displayValue: false
+                    });
+                    previewCodeImg.src = canvas.toDataURL();
+                } catch (error) {
+                    console.error('Error generating preview barcode:', error);
+                    this.showErrorInPreview('previewBarcode', settings.barcodeWidth, settings.barcodeHeight);
+                }
+            }
+
+            showErrorInPreview(elementId, width, height) {
+                const canvas = document.createElement('canvas');
+                canvas.width = width;
+                canvas.height = height;
+                const ctx = canvas.getContext('2d');
+                ctx.fillStyle = '#f8f9fa';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#dc3545';
+                ctx.font = '12px Arial';
+                ctx.textAlign = 'center';
+                ctx.fillText('Error', canvas.width/2, canvas.height/2);
+                document.getElementById(elementId).src = canvas.toDataURL();
+            }
+
+            makeDraggable(elementId, xInputId, yInputId) {
+                const overlay = document.getElementById(elementId);
                 const container = document.getElementById('previewContainer');
-                
+
                 overlay.addEventListener('mousedown', (e) => {
                     this.isDragging = true;
+                    this.draggedElement = elementId;
                     const rect = overlay.getBoundingClientRect();
-                    const containerRect = container.getBoundingClientRect();
                     this.dragOffset.x = e.clientX - rect.left;
                     this.dragOffset.y = e.clientY - rect.top;
-                    
+
                     const mouseMoveHandler = (e) => {
                         if (!this.isDragging) return;
-                        
-                        const containerRect = container.getBoundingClientRect();
+
                         const templateImg = document.getElementById('templateImg');
                         const templateRect = templateImg.getBoundingClientRect();
-                        
+
                         let newX = e.clientX - templateRect.left - this.dragOffset.x;
                         let newY = e.clientY - templateRect.top - this.dragOffset.y;
-                        
+
                         // Convert to percentage
                         const xPercent = Math.max(0, Math.min(95, (newX / templateImg.offsetWidth) * 100));
                         const yPercent = Math.max(0, Math.min(95, (newY / templateImg.offsetHeight) * 100));
-                        
-                        document.getElementById('xPosition').value = Math.round(xPercent);
-                        document.getElementById('yPosition').value = Math.round(yPercent);
-                        
+
+                        document.getElementById(xInputId).value = Math.round(xPercent);
+                        document.getElementById(yInputId).value = Math.round(yPercent);
+
                         overlay.style.left = xPercent + '%';
                         overlay.style.top = yPercent + '%';
                     };
-                    
+
                     const mouseUpHandler = () => {
                         this.isDragging = false;
                         document.removeEventListener('mousemove', mouseMoveHandler);
                         document.removeEventListener('mouseup', mouseUpHandler);
                     };
-                    
+
                     document.addEventListener('mousemove', mouseMoveHandler);
                     document.addEventListener('mouseup', mouseUpHandler);
                 });
@@ -682,15 +746,18 @@
 
             getSettings() {
                 return {
-                    codeType: document.getElementById('codeType').value,
                     startValue: parseInt(document.getElementById('startValue').value),
                     endValue: parseInt(document.getElementById('endValue').value),
                     prefix: document.getElementById('prefix').value,
                     showValue: document.getElementById('showValue').checked,
-                    codeWidth: parseInt(document.getElementById('codeWidth').value),
-                    codeHeight: parseInt(document.getElementById('codeHeight').value),
-                    xPosition: parseInt(document.getElementById('xPosition').value),
-                    yPosition: parseInt(document.getElementById('yPosition').value)
+                    qrWidth: parseInt(document.getElementById('qrWidth').value),
+                    qrHeight: parseInt(document.getElementById('qrHeight').value),
+                    qrXPosition: parseInt(document.getElementById('qrXPosition').value),
+                    qrYPosition: parseInt(document.getElementById('qrYPosition').value),
+                    barcodeWidth: parseInt(document.getElementById('barcodeWidth').value),
+                    barcodeHeight: parseInt(document.getElementById('barcodeHeight').value),
+                    barcodeXPosition: parseInt(document.getElementById('barcodeXPosition').value),
+                    barcodeYPosition: parseInt(document.getElementById('barcodeYPosition').value)
                 };
             }
 
@@ -729,7 +796,8 @@
                                 height: height
                             });
 
-                            await this.addCodeToPage(page, settings, i);
+                            await this.addQRCodeToPage(page, settings, i);
+                            await this.addBarcodeToPage(page, settings, i);
 
                             const progress = ((i - settings.startValue + 1) / totalPages) * 100;
                             this.showProgress(progress);
@@ -756,7 +824,8 @@
                                 height: templateImage.height
                             });
 
-                            await this.addCodeToPage(page, settings, i);
+                            await this.addQRCodeToPage(page, settings, i);
+                            await this.addBarcodeToPage(page, settings, i);
 
                             const progress = ((i - settings.startValue + 1) / totalPages) * 100;
                             this.showProgress(progress);
@@ -765,8 +834,7 @@
 
                     // Save the PDF with compression options
                     const pdfBytes = await pdfDoc.save({
-                        useObjectStreams: true, // This can help reduce file size
-                        // Add any other compression options if available in the library
+                        useObjectStreams: true,
                     });
 
                     this.downloadPDF(pdfBytes);
@@ -783,12 +851,118 @@
                 }
             }
 
+            async addQRCodeToPage(page, settings, value) {
+                const codeValue = settings.prefix + value;
+                const pageSize = page.getSize();
+
+                // Calculate position
+                const x = (settings.qrXPosition / 100) * pageSize.width;
+                const y = pageSize.height - (settings.qrYPosition / 100) * pageSize.height - settings.qrHeight;
+
+                // Generate QR code
+                const qr = qrcode(0, 'M');
+                qr.addData(codeValue);
+                qr.make();
+
+                // Create canvas and draw QR code
+                const canvas = document.createElement('canvas');
+                const ctx = canvas.getContext('2d');
+                const modules = qr.getModuleCount();
+                const cellSize = Math.floor(settings.qrWidth / modules);
+
+                canvas.width = cellSize * modules;
+                canvas.height = cellSize * modules;
+
+                ctx.fillStyle = '#ffffff';
+                ctx.fillRect(0, 0, canvas.width, canvas.height);
+                ctx.fillStyle = '#000000';
+
+                for (let row = 0; row < modules; row++) {
+                    for (let col = 0; col < modules; col++) {
+                        if (qr.isDark(row, col)) {
+                            ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
+                        }
+                    }
+                }
+
+                // Compress the image
+                const codeDataURL = canvas.toDataURL();
+                const compressedDataURL = await this.compressImage(codeDataURL);
+                const codeImageBytes = this.dataURLToArrayBuffer(compressedDataURL);
+                const codeImage = await page.doc.embedPng(codeImageBytes);
+
+                // Draw QR code
+                page.drawImage(codeImage, {
+                    x: x,
+                    y: y,
+                    width: settings.qrWidth,
+                    height: settings.qrHeight
+                });
+
+                // Draw value text if enabled
+                if (settings.showValue) {
+                    const textWidth = codeValue.length * 5;
+                    const textX = x + (settings.qrWidth / 2) - (textWidth / 2);
+
+                    page.drawText(codeValue, {
+                        x: textX,
+                        y: y - 15,
+                        size: 10,
+                        color: PDFLib.rgb(0, 0, 0)
+                    });
+                }
+            }
+
+            async addBarcodeToPage(page, settings, value) {
+                const codeValue = settings.prefix + value;
+                const pageSize = page.getSize();
+
+                // Calculate position
+                const x = (settings.barcodeXPosition / 100) * pageSize.width;
+                const y = pageSize.height - (settings.barcodeYPosition / 100) * pageSize.height - settings.barcodeHeight;
+
+                // Generate barcode
+                const canvas = document.createElement('canvas');
+                JsBarcode(canvas, codeValue, {
+                    format: "CODE128",
+                    width: 2,
+                    height: settings.barcodeHeight - 20,
+                    displayValue: false
+                });
+
+                // Compress the image
+                const codeDataURL = canvas.toDataURL();
+                const compressedDataURL = await this.compressImage(codeDataURL);
+                const codeImageBytes = this.dataURLToArrayBuffer(compressedDataURL);
+                const codeImage = await page.doc.embedPng(codeImageBytes);
+
+                // Draw barcode
+                page.drawImage(codeImage, {
+                    x: x,
+                    y: y,
+                    width: settings.barcodeWidth,
+                    height: settings.barcodeHeight
+                });
+
+                // Draw value text if enabled
+                if (settings.showValue) {
+                    const textWidth = codeValue.length * 5;
+                    const textX = x + (settings.barcodeWidth / 2) - (textWidth / 2);
+
+                    page.drawText(codeValue, {
+                        x: textX,
+                        y: y - 15,
+                        size: 10,
+                        color: PDFLib.rgb(0, 0, 0)
+                    });
+                }
+            }
 
             async compressImage(dataURL) {
                 const imageCompression = window.imageCompression;
                 const options = {
-                    maxSizeMB: 0.1, // Maximum size in MB
-                    maxWidthOrHeight: 500, // Maximum width or height
+                    maxSizeMB: 0.1,
+                    maxWidthOrHeight: 1000,
                     useWebWorker: true
                 };
 
@@ -799,82 +973,6 @@
                     reader.onload = (event) => resolve(event.target.result);
                     reader.readAsDataURL(compressedFile);
                 });
-            }
-            async addCodeToPage(page, settings, value) {
-                const codeValue = settings.prefix + value;
-                const pageSize = page.getSize();
-
-                // Calculate position
-                const x = (settings.xPosition / 100) * pageSize.width;
-                const y = pageSize.height - (settings.yPosition / 100) * pageSize.height - settings.codeHeight;
-
-                // Generate code
-                let codeDataURL;
-                if (settings.codeType === 'qr') {
-                    // Use the qrcode-generator library
-                    const qr = qrcode(0, 'M');
-                    qr.addData(codeValue);
-                    qr.make();
-
-                    // Create canvas and draw QR code
-                    const canvas = document.createElement('canvas');
-                    const ctx = canvas.getContext('2d');
-                    const modules = qr.getModuleCount();
-                    const cellSize = Math.floor(settings.codeWidth / modules);
-
-                    canvas.width = cellSize * modules;
-                    canvas.height = cellSize * modules;
-
-                    ctx.fillStyle = '#ffffff';
-                    ctx.fillRect(0, 0, canvas.width, canvas.height);
-                    ctx.fillStyle = '#000000';
-
-                    for (let row = 0; row < modules; row++) {
-                        for (let col = 0; col < modules; col++) {
-                            if (qr.isDark(row, col)) {
-                                ctx.fillRect(col * cellSize, row * cellSize, cellSize, cellSize);
-                            }
-                        }
-                    }
-
-                    codeDataURL = canvas.toDataURL();
-                } else {
-                    const canvas = document.createElement('canvas');
-                    JsBarcode(canvas, codeValue, {
-                        format: "CODE128",
-                        width: 2,
-                        height: settings.codeHeight - 20,
-                        displayValue: false
-                    });
-                    codeDataURL = canvas.toDataURL();
-                }
-
-                // Compress the image
-                const compressedDataURL = await this.compressImage(codeDataURL);
-                const codeImageBytes = this.dataURLToArrayBuffer(compressedDataURL);
-                const codeImage = await page.doc.embedPng(codeImageBytes);
-
-                // Draw code
-                page.drawImage(codeImage, {
-                    x: x,
-                    y: y,
-                    width: settings.codeWidth,
-                    height: settings.codeHeight
-                });
-
-                // Draw value text if enabled
-                if (settings.showValue) {
-                    // Calculate text width to center it
-                    const textWidth = codeValue.length * 5; // Approximate width calculation
-                    const textX = x + (settings.codeWidth / 2) - (textWidth / 2);
-
-                    page.drawText(codeValue, {
-                        x: textX,
-                        y: y - 15,
-                        size: 10,
-                        color: PDFLib.rgb(0, 0, 0)
-                    });
-                }
             }
 
             dataURLToArrayBuffer(dataURL) {
@@ -902,7 +1000,7 @@
             showProgress(percent) {
                 const progressBar = document.getElementById('progressBar');
                 const progressFill = document.getElementById('progressFill');
-                
+
                 progressBar.style.display = 'block';
                 progressFill.style.width = percent + '%';
             }
@@ -912,7 +1010,7 @@
                 statusDiv.textContent = message;
                 statusDiv.className = `status-message ${type}`;
                 statusDiv.style.display = 'block';
-                
+
                 if (type === 'success') {
                     setTimeout(() => {
                         statusDiv.style.display = 'none';

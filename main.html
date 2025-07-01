@@ -340,8 +340,13 @@
                     </div>
 
                     <div class="checkbox-group">
-                        <input type="checkbox" id="showValue" checked>
-                        <label for="showValue">Show value below code</label>
+                        <input type="checkbox" id="showQRValue" checked>
+                        <label for="showQRValue">Show value below QR code</label>
+                    </div>
+
+                    <div class="checkbox-group">
+                        <input type="checkbox" id="showBarcodeValue" checked>
+                        <label for="showBarcodeValue">Show value below Barcode</label>
                     </div>
                 </div>
 
@@ -448,7 +453,7 @@
 
                 // Settings changes
                 const settingsIds = [
-                    'startValue', 'endValue', 'prefix', 'showValue',
+                    'startValue', 'endValue', 'prefix', 'showQRValue', 'showBarcodeValue',
                     'qrWidth', 'qrHeight', 'qrXPosition', 'qrYPosition',
                     'barcodeWidth', 'barcodeHeight', 'barcodeXPosition', 'barcodeYPosition'
                 ];
@@ -603,19 +608,19 @@
                             left: ${settings.qrXPosition}%;
                             top: ${settings.qrYPosition}%;
                             width: ${settings.qrWidth}px;
-                            height: ${settings.qrHeight + (settings.showValue ? 20 : 0)}px;
+                            height: ${settings.qrHeight + (settings.showQRValue ? 20 : 0)}px;
                         ">
                             <img id="previewQRCode" style="width: ${settings.qrWidth}px; height: ${settings.qrHeight}px;">
-                            ${settings.showValue ? `<div class="value-text">${settings.prefix}${settings.startValue}</div>` : ''}
+                            ${settings.showQRValue ? `<div class="value-text" style="margin-top: 2px;">${settings.prefix}${settings.startValue}</div>` : ''}
                         </div>
                         <div class="code-overlay" id="barcodeOverlay" style="
                             left: ${settings.barcodeXPosition}%;
                             top: ${settings.barcodeYPosition}%;
                             width: ${settings.barcodeWidth}px;
-                            height: ${settings.barcodeHeight + (settings.showValue ? 20 : 0)}px;
+                            height: ${settings.barcodeHeight + (settings.showBarcodeValue ? 15 : 0)}px;
                         ">
                             <img id="previewBarcode" style="width: ${settings.barcodeWidth}px; height: ${settings.barcodeHeight}px;">
-                            ${settings.showValue ? `<div class="value-text">${settings.prefix}${settings.startValue}</div>` : ''}
+                            ${settings.showBarcodeValue ? `<div class="value-text" style="margin-top: 2px;">${settings.prefix}${settings.startValue}</div>` : ''}
                         </div>
                     </div>
                 `;
@@ -749,7 +754,8 @@
                     startValue: parseInt(document.getElementById('startValue').value),
                     endValue: parseInt(document.getElementById('endValue').value),
                     prefix: document.getElementById('prefix').value,
-                    showValue: document.getElementById('showValue').checked,
+                    showQRValue: document.getElementById('showQRValue').checked,
+                    showBarcodeValue: document.getElementById('showBarcodeValue').checked,
                     qrWidth: parseInt(document.getElementById('qrWidth').value),
                     qrHeight: parseInt(document.getElementById('qrHeight').value),
                     qrXPosition: parseInt(document.getElementById('qrXPosition').value),
@@ -900,7 +906,7 @@
                 });
 
                 // Draw value text if enabled
-                if (settings.showValue) {
+                if (settings.showQRValue) {
                     const textWidth = codeValue.length * 5;
                     const textX = x + (settings.qrWidth / 2) - (textWidth / 2);
 
@@ -945,13 +951,13 @@
                 });
 
                 // Draw value text if enabled
-                if (settings.showValue) {
+                if (settings.showBarcodeValue) {
                     const textWidth = codeValue.length * 5;
                     const textX = x + (settings.barcodeWidth / 2) - (textWidth / 2);
 
                     page.drawText(codeValue, {
                         x: textX,
-                        y: y - 15,
+                        y: y - 10,
                         size: 10,
                         color: PDFLib.rgb(0, 0, 0)
                     });

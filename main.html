@@ -330,7 +330,7 @@
                         </div>
                         <div class="form-group">
                             <label>End Value</label>
-                            <input type="number" id="endValue" value="10" min="1" max="500">
+                            <input type="number" id="endValue" value="10" min="1" max="1500">
                         </div>
                     </div>
 
@@ -771,8 +771,8 @@
                 const settings = this.getSettings();
                 const totalPages = settings.endValue - settings.startValue + 1;
 
-                if (totalPages > 500) {
-                    this.showStatus('Maximum 500 pages allowed', 'error');
+                if (totalPages > 1500) {
+                    this.showStatus('Maximum 1500 pages allowed', 'error');
                     return;
                 }
 
